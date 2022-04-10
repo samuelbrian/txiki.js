@@ -28,6 +28,7 @@
 #include "utils.h"
 
 #include <string.h>
+#include <libgen.h>
 
 
 JSModuleDef *tjs__load_http(JSContext *ctx, const char *url) {
@@ -115,6 +116,96 @@ JSModuleDef *tjs_module_loader(JSContext *ctx, const char *module_name, void *op
     JS_FreeValue(ctx, func_val);
 
     return m;
+}
+
+static char *tjs_find_module_ext(JSContext *ctx, const char *module_name)
+{
+    char module_path[PATH_MAX + 1];
+    struct stat sb;
+
+    if (stat(module_name, &sb) == 0 && S_ISREG(sb.st_mode))
+        return js_strdup(ctx, module_name);
+
+    snprintf(module_path, sizeof(module_path), "%s.js", module_name);
+    if (stat(module_path, &sb) == 0 && S_ISREG(sb.st_mode))
+        return js_strdup(ctx, module_path);
+
+    snprintf(module_path, sizeof(module_path), "%s/index.js", module_name);
+    if (stat(module_path, &sb) == 0 && S_ISREG(sb.st_mode))
+        return js_strdup(ctx, module_path);
+
+    snprintf(module_path, sizeof(module_path), "%s.so", module_name);
+    if (stat(module_path, &sb) == 0 && S_ISREG(sb.st_mode))
+        return js_strdup(ctx, module_path);
+
+    return NULL;
+}
+
+static char *tjs_search_module(JSContext *ctx, const char *module_name)
+{
+    char *module_path = NULL;
+    const char *search_paths;
+    const char *search_path;
+
+    /* Search for module in colon-separated paths in tjs_LIBRARY_PATH. */
+    search_paths = getenv("TJS_LIBRARY_PATH");
+    if (search_paths == NULL)
+        search_paths = TJS_LIBRARY_PATH_DEFAULT;
+
+    for (search_path = search_paths; search_path && *search_path;) {
+        char name[PATH_MAX + 1];
+        const char *end;
+
+        end = strchr(search_path, ':');
+        if (!end)
+            end = search_path + strlen(search_path);
+
+        snprintf(name, sizeof(name), "%.*s/%s", (int)(end - search_path),
+            search_path, module_name);
+        module_path = tjs_find_module_ext(ctx, name);
+
+        if (module_path != NULL)
+            break;
+
+        search_path = end + 1;
+    }
+
+    return module_path;
+}
+
+char *tjs_module_normalize_name(JSContext *ctx, const char *base_name,
+    const char *name, void *data)
+{
+    const char cd_prefix[] = "./";
+    const char ud_prefix[] = "../";
+    const char abs_prefix[] = "/";
+
+    if (strncmp(name, cd_prefix, sizeof(cd_prefix) - 1) == 0
+            || strncmp(name, ud_prefix, sizeof(ud_prefix) - 1) == 0) {
+        char path[PATH_MAX + 1];
+        char *tmp, *dir;
+
+        tmp = js_strdup(ctx, base_name);
+        if (!tmp)
+            return NULL;
+        dir = dirname(tmp);
+
+        /* Module name is relative to the base name. */
+        snprintf(path, sizeof(path), "%s/%s", dir, name);
+        free(tmp);
+
+        return tjs_find_module_ext(ctx, path) ?: js_strdup(ctx, path);
+
+    } else if (strncmp(name, abs_prefix, sizeof(abs_prefix) - 1) == 0) {
+        /* Absolute path resolves directly. */
+        return tjs_find_module_ext(ctx, name) ?: js_strdup(ctx, name);
+
+    } else {
+        /* Search for others in the library paths, or otherwise
+         * return a copy of the name in case it's a built-in module
+         * like "std" or "os". */
+        return tjs_search_module(ctx, name) ?: js_strdup(ctx, name);
+    }
 }
 
 #if defined(_WIN32)
