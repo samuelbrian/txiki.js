@@ -1,4 +1,4 @@
-cmake_minimum_required(VERSION 3.14)
+cmake_minimum_required(VERSION 3.10)
 
 project(tjs LANGUAGES C)
 
@@ -32,6 +32,8 @@ configure_file(
     "${CMAKE_SOURCE_DIR}/src/version.h"
 )
 
+set(CONFOPTS "" CACHE STRING "Configure options for libffi")
+separate_arguments(CONFOPTS_ARGS NATIVE_COMMAND ${CONFOPTS})
 
 macro(cpr_option OPTION_NAME OPTION_TEXT OPTION_DEFAULT)
     option(${OPTION_NAME} ${OPTION_TEXT} ${OPTION_DEFAULT})
@@ -88,7 +90,7 @@ add_executable(tjs
     src/wasm.c
     src/worker.c
     src/xhr.c
-    ../deps/quickjs/src/cutils.c
+    deps/quickjs/src/cutils.c
 )
 
 add_library(ffi-test SHARED
@@ -107,7 +109,7 @@ if(NOT USE_EXTERNAL_FFI AND NOT MINGW)
         libffi
         BUILD_IN_SOURCE 1
         SOURCE_DIR "${LIBFFI_SRC}"
-        CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --enable-static=yes --disable-shared
+        CONFIGURE_COMMAND ./autogen.sh COMMAND ./configure --enable-static=yes --disable-shared ${CONFOPTS_ARGS}
         BUILD_COMMAND make
         INSTALL_DIR ${TMP_INSTALL_DIR}
         INSTALL_COMMAND make DESTDIR=${TMP_INSTALL_DIR} install
@@ -143,3 +145,5 @@ if (BUILD_WITH_ASAN)
     target_compile_options(tjs PRIVATE -fsanitize=address)
     target_link_options(tjs PRIVATE -fsanitize=address)
 endif()
+
+install(TARGETS tjs RUNTIME DESTINATION /bin)
