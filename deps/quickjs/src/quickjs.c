@@ -67,6 +67,10 @@
 #define CONFIG_PRINTF_RNDN
 #endif
 
+#if defined(__arm__) && !defined(__ARM_PCS_VFP)
+#undef CONFIG_PRINTF_RNDN
+#endif
+
 /* define to include Atomics.* operations which depend on the OS
    threads */
 #if !defined(EMSCRIPTEN) && !defined(_WIN32)
