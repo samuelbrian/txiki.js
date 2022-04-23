@@ -29,6 +29,9 @@ format:
 test:
 	./$(BUILD_DIR)/tjs tests/run.js tests/
 
+test-%:
+	./$(BUILD_DIR)/tjs tests/test-$*.js
+
 test-advanced:
 	cd tests/advanced && npm install
 	./$(BUILD_DIR)/tjs tests/run.js tests/advanced/
