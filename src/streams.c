@@ -26,6 +26,7 @@
 #include "utils.h"
 
 #include <string.h>
+#include <unistd.h>
 
 
 /* Forward declarations */
@@ -645,6 +646,10 @@ static JSValue tjs_tty_constructor(JSContext *ctx, JSValueConst new_target, int 
         JS_FreeValue(ctx, obj);
         return JS_EXCEPTION;
     }
+
+    fd = dup(fd);
+    if (fd == -1)
+        return JS_EXCEPTION;
 
     r = uv_tty_init(tjs_get_loop(ctx), &s->h.tty, fd, readable);
     if (r != 0) {
