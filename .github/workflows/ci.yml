@@ -29,7 +29,7 @@ jobs:
           echo "::set-env name=CXX::clang++"
         fi
     - name: Build it
-      run: make
+      run: CMAKE_OPTS=-DBOOTSTRAP=le make
     - name: Test it
       run: make test
     - name: Test it (advanced)
