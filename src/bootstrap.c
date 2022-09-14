@@ -26,9 +26,7 @@
 #include "private.h"
 #include "tjs.h"
 
-
-INCTXT(bundle, "bundle.js");
-
+INCTXT(bundle, BOOTSTRAP_BUNDLE_FILENAME);
 /**
  * These are defined now:
  *
@@ -38,7 +36,7 @@ INCTXT(bundle, "bundle.js");
  *
  */
 
-INCTXT(std, "std.js");
+INCTXT(std, BOOTSTRAP_STD_FILENAME);
 
 /**
  * These are defined now:
@@ -61,8 +59,37 @@ int tjs__eval_text(JSContext *ctx, const char *buf, size_t buf_len, const char *
     return ret;
 }
 
+int tjs__eval_bytecode(JSContext *ctx, const char *buf, size_t buf_len, const char *filename) {
+    int ret = 0;
+    JSValue func_val = JS_UNDEFINED;
+    JSValue val = JS_UNDEFINED;
+
+    /* FIXME: Work out where this goes and is cleaned up? Global scope? */
+    func_val = JS_ReadObject(ctx, (const uint8_t *)buf, buf_len - 1, JS_READ_OBJ_BYTECODE);
+    if (JS_IsException(func_val)) {
+        tjs_dump_error(ctx);
+        ret = -1;
+        goto error;
+    }
+
+    val = JS_EvalFunction(ctx, func_val);
+    if (JS_IsException(val)) {
+        tjs_dump_error(ctx);
+        ret = -1;
+        goto error;
+    }
+
+error:
+    JS_FreeValue(ctx, val);
+    return ret;
+}
+
 void tjs__bootstrap_globals(JSContext *ctx) {
-    CHECK_EQ(0, tjs__eval_text(ctx, tjs__code_bundle_data, tjs__code_bundle_size, "bundle.js"));
+#ifdef BOOTSTRAP_BYTECODE
+    CHECK_EQ(0, tjs__eval_bytecode(ctx, tjs__code_bundle_data, tjs__code_bundle_size, BOOTSTRAP_BUNDLE_FILENAME));
+#else
+    CHECK_EQ(0, tjs__eval_text(ctx, tjs__code_bundle_data, tjs__code_bundle_size, BOOTSTRAP_BUNDLE_FILENAME));
+#endif
 }
 
 static int tjs__add_builtin_module(JSContext *ctx, const char *name, const char *buf, size_t buf_len) {
@@ -84,6 +111,26 @@ error:
     return -1;
 }
 
+static int tjs__add_builtin_module_bytecode(JSContext *ctx, const char *name, const char *buf, size_t buf_len) {
+    JSValue obj = JS_ReadObject(ctx, (const uint8_t *)buf, buf_len - 1, JS_READ_OBJ_BYTECODE);
+    if (JS_IsException(obj))
+        goto error;
+
+    if (JS_ResolveModule(ctx, obj) < 0)
+        goto error;
+
+    js_module_set_import_meta(ctx, obj, FALSE, FALSE);
+    return 0;
+
+error:
+    tjs_dump_error(ctx);
+    return -1;
+}
+
 void tjs__add_stdlib(JSContext *ctx) {
+#ifdef BOOTSTRAP_BYTECODE
+    CHECK_EQ(0, tjs__add_builtin_module_bytecode(ctx, "@tjs/std", tjs__code_std_data, tjs__code_std_size));
+#else
     CHECK_EQ(0, tjs__add_builtin_module(ctx, "@tjs/std", tjs__code_std_data, tjs__code_std_size));
+#endif
 }

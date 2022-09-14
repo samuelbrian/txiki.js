@@ -15,8 +15,18 @@ message(STATUS "Building with ${CMAKE_C_COMPILER_ID} ${CMAKE_C_COMPILER_VERSION}
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
 set(TJS_LIBRARY_PATH_DEFAULT "/lib/js")
-
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DTJS_LIBRARY_PATH_DEFAULT=\\\"${TJS_LIBRARY_PATH_DEFAULT}\\\"")
+
+set(BOOTSTRAP "script" CACHE STRING "The bootstrap module format: script (JavaScript source), le (little endian bytecode), be (big endian bytecode)")
+message(STATUS "Bootstrap:       ${BOOTSTRAP}")
+if (${BOOTSTRAP} MATCHES "le")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBOOTSTRAP_BUNDLE_FILENAME=\\\"bundle.le.qjs\\\" -DBOOTSTRAP_STD_FILENAME=\\\"std.le.qjs\\\" -DBOOTSTRAP_BYTECODE")
+elseif (${BOOTSTRAP} MATCHES "be")
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBOOTSTRAP_BUNDLE_FILENAME=\\\"bundle.be.qjs\\\" -DBOOTSTRAP_STD_FILENAME=\\\"std.be.qjs\\\" -DBOOTSTRAP_BYTECODE")
+else ()
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DBOOTSTRAP_BUNDLE_FILENAME=\\\"bundle.js\\\" -DBOOTSTRAP_STD_FILENAME=\\\"std.js\\\"")
+endif()
+
 set(CMAKE_C_FLAGS_RELEASE "${CMAKE_C_FLAGS_RELEASE} -g")
 set(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb -O0 -fno-omit-frame-pointer")
 
@@ -51,6 +61,43 @@ macro(cpr_option OPTION_NAME OPTION_TEXT OPTION_DEFAULT)
 endmacro()
 
 cpr_option(BUILD_WITH_ASAN "If ON, build with the address sanitizer enabled" OFF)
+
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/bundle.js
+        ${CMAKE_CURRENT_BINARY_DIR}/bundle.js
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/bundle.le.qjs
+        ${CMAKE_CURRENT_BINARY_DIR}/bundle.le.qjs
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/bundle.be.qjs
+        ${CMAKE_CURRENT_BINARY_DIR}/bundle.be.qjs
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/eval-stdin.js
+        ${CMAKE_CURRENT_BINARY_DIR}/eval-stdin.js
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/repl.js
+        ${CMAKE_CURRENT_BINARY_DIR}/repl.js
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/std.js
+        ${CMAKE_CURRENT_BINARY_DIR}/std.js
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/std.le.qjs
+        ${CMAKE_CURRENT_BINARY_DIR}/std.le.qjs
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/std.be.qjs
+        ${CMAKE_CURRENT_BINARY_DIR}/std.be.qjs
+        COPYONLY)
+configure_file(
+        ${CMAKE_SOURCE_DIR}/src/js/worker-bootstrap.js
+        ${CMAKE_CURRENT_BINARY_DIR}/worker-bootstrap.js
+        COPYONLY)
 
 add_subdirectory(deps/quickjs EXCLUDE_FROM_ALL)
 
@@ -150,3 +197,12 @@ if (BUILD_WITH_ASAN)
 endif()
 
 install(TARGETS tjs RUNTIME DESTINATION /bin)
+
+cpr_option(BUILD_BOOTSTRAP_COMPILE "desc" OFF)
+if (BUILD_BOOTSTRAP_COMPILE)
+	add_executable(bootstrap-compile
+		src/bootstrap-compile.c
+	)
+
+	target_link_libraries(bootstrap-compile qjs m)
+endif()

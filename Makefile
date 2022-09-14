@@ -8,8 +8,14 @@ all: build
 
 build:
 	@mkdir -p $(BUILD_DIR)
-	cd $(BUILD_DIR); cmake ../ -DCMAKE_BUILD_TYPE=$(BUILDTYPE)
+	cd $(BUILD_DIR); cmake ../ -DCMAKE_BUILD_TYPE=$(BUILDTYPE) $(CMAKE_OPTS)
 	cmake --build $(BUILD_DIR)
+
+compile-bytecode: CMAKE_OPTS=-DBUILD_BOOTSTRAP_COMPILE=ON
+compile-bytecode: build
+	# Assumes building on a little endian host
+	$(BUILD_DIR)/bootstrap-compile src/js/bundle.js src/js/bundle.le.qjs src/js/bundle.be.qjs
+	$(BUILD_DIR)/bootstrap-compile src/js/std.js src/js/std.le.qjs src/js/std.be.qjs @tjs/std
 
 install:
 	cmake --build $(BUILD_DIR) --target install
