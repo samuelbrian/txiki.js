@@ -264,7 +264,7 @@ export class Pointer{
 			const buf = ffiInt.ptrToBuffer(addr, this._type.size);
 			return this._type.fromBuffer(buf, {});
 		}else{
-			return new Pointer(this._addr, this._level - 1, this._ffiType);
+			return new Pointer(this._addr, this._level - 1, this._type);
 		}
 	}
 	derefAll(){
