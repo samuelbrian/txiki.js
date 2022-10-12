@@ -12752,7 +12752,7 @@ var DlSymbol = class {
     this._dlsym = dlsym;
   }
   get addr() {
-    return this._symbol.addr;
+    return this._dlsym.addr;
   }
 };
 function formatTypeName(name) {
