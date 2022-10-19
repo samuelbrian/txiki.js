@@ -938,6 +938,16 @@ declare namespace tjs {
     function availableParallelism(): number;
 
     /**
+     * UTF-8 decode the buffer's contents into a string.
+     */
+    function textDecode(buffer: Uint8Array): string;
+
+    /**
+     * UTF-8 encode the string into a buffer.
+     */
+    function textEncode(str: string): Uint8Array;
+
+    /**
      * gives access to the FFI api.
      */
     const ffi: typeof FFI;

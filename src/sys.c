@@ -74,9 +74,37 @@ static JSValue tjs_exepath(JSContext *ctx, JSValueConst this_val) {
     return ret;
 }
 
+static JSValue js_textDecode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    size_t size;
+    uint8_t *buf = JS_GetUint8Array(ctx, &size, argv[0]);
+    if (!buf)
+        return JS_EXCEPTION;
+
+    return JS_NewStringLen(ctx, buf, size);;
+}
+
+static JSValue js_textEncode(JSContext *ctx, JSValueConst this_val, int argc, JSValueConst *argv) {
+    const char *str;
+    size_t len;
+    uint8_t *buf;
+
+    str = JS_ToCStringLen(ctx, &len, argv[0]);
+    if (!str)
+        return JS_EXCEPTION;
+
+    buf = js_malloc(ctx, len);
+    if (!buf)
+        return JS_EXCEPTION;
+
+    memcpy(buf, str, len);
+    return TJS_NewUint8Array(ctx, buf, len);
+}
+
 static const JSCFunctionListEntry tjs_sys_funcs[] = {
     TJS_CFUNC_DEF("gc", 0, js_std_gc),
     TJS_CFUNC_DEF("evalScript", 1, js_evalScript),
+    TJS_CFUNC_DEF("textDecode", 1, js_textDecode),
+    TJS_CFUNC_DEF("textEncode", 1, js_textEncode),
     TJS_CGETSET_DEF("exepath", tjs_exepath, NULL),
 };
 
